@@ -1,26 +1,26 @@
 ---
-title: Arbitrary CPI
-objectives:
-- Explain the security risks associated with invoking a CPI to an unknown program
-- Showcase how Anchor’s CPI module prevents this from happening when making a CPI from one Anchor program to another
-- Safely and securely make a CPI from an Anchor program to an arbitrary non-anchor program
+Заголовок: Довільний CPI
+цілі:
+- Поясніть ризики безпеки, пов'язані з викликом CPI для невідомої програми
+- Продемонструйте, як модуль CPI Anchor запобігає цьому під час створення CPI від однієї прив'язаної програми до іншої
+- Безпечно та надійно перетворюйте CPI з прив'язаної програми в довільну програму без прив’язки.
 ---
 
-# TL;DR
+# Багато тексту
 
-- To generate a CPI, the target program must be passed into the invoking instruction as an account. This means that any target program could be passed into the instruction. Your program should check for incorrect or unexpected programs.
-- Perform program checks in native programs by simply comparing the public key of the passed-in program to the progam you expected.
-- If a program is written in Anchor, then it may have a publicly available CPI module. This makes invoking the program from another Anchor program simple and secure. The Anchor CPI module automatically checks that the address of the program passed in matches the address of the program stored in the module.
+- Щоб створити CPI, цільова програма повинна бути передана в інструкцію виклику як обліковий запис. Це означає, що будь-яка цільова програма може бути передана в інструкцію. Ваша програма повинна перевіряти наявність неправильних або неочікуваних програм.
+- Виконуйте перевірки програм у рідних програмах, просто порівнюючи відкритий ключ переданої програми з програмою, яку ви очікували.
+- Якщо програма написана на Anchor, вона може мати загальнодоступний модуль CPI. Це робить виклик програми з іншої Anchor програми простим і безпечним. Модуль Anchor CPI автоматично перевіряє, чи адреса переданої програми відповідає адресі програми, що зберігається в модулі.
 
-# Overview
+# Огляд
 
-A cross program invocation (CPI) is when one program invokes an instruction on another program. An “arbitrary CPI” is when a program is structured to issue a CPI to whatever program is passed into the instruction rather than expecting to perform a CPI to one specific program. Given that the callers of your program's instruction can pass any program they'd like into the instruction's list of accounts, failing to verify the address of a passed-in program results in your program performing CPIs to arbitrary programs.
+Міжпрограмний виклик (cross program invocation -CPI) — це коли одна програма викликає інструкцію іншої програми. «Довільний CPI» — це коли програма структурована так, щоб видавати CPI будь-якій програмі, переданій в інструкції, а не очікувати виконання CPI для однієї конкретної програми. Враховуючи, що користувачі інструкції вашої програми можуть передати будь-яку програму, яку вони бажають, у список облікових записів інструкції, неможливість перевірити адресу переданої програми призводить до того, що ваша програма виконує CPI для довільних програм.
 
-This lack of program checks creates an opportunity for a malicious user to pass in a different program than expected, causing the original program to call an instruction on this mystery program. There’s no telling what the consequences of this CPI could be. It depends on the program logic (both that of the original program and the unexpected program), as well as what other accounts are passed into the original instruction.
+Відсутність перевірки програми створює можливість для зловмисника передати програму, відмінну від очікуваної, змушуючи вихідну програму викликати інструкцію цієї таємничої програми. Невідомо, якими можуть бути наслідки цього CPI. Це залежить від логіки програми (як оригінальної програми, так і неочікуваної програми), а також від того, які інші облікові записи передаються в оригінальну інструкцію.
 
-## Missing program checks
+## Відсутність перевірки програми
 
-Take the following program as an example. The `cpi` instruction invokes the `transfer` instruction on `token_program`, but there is no code that checks whether or not the `token_program` account passed into the instruction is, in fact, the SPL Token Program.
+Розглянемо для прикладу наступну програму. Інструкція `cpi` викликає інструкцію `transfer` у `token_program`, але немає коду, який перевіряє, чи обліковий запис `token_program`, переданий у інструкцію, насправді є програмою маркерів SPL.
 
 ```rust
 use anchor_lang::prelude::*;
@@ -60,11 +60,10 @@ pub struct Cpi<'info> {
 }
 ```
 
-An attacker could easily call this instruction and pass in a duplicate token program that they created and control.
+Зловмисник міг би легко викликати цю інструкцію та передати програму-дублікат маркера, яку він створив і контролює.
+## Додавання програмної перевірки
 
-## Add program checks
-
-It's possible to fix this vulnerabilty by simply adding a few lines to the `cpi` instruction to check whether or not `token_program`'s public key is that of the SPL Token Program.
+Цю вразливість можна виправити, просто додавши кілька рядків до інструкції `cpi`, щоб перевірити, чи є відкритий ключ token_program відкритим ключем програми SPL Token.
 
 ```rust
 pub fn cpi_secure(ctx: Context<Cpi>, amount: u64) -> ProgramResult {
@@ -89,20 +88,18 @@ pub fn cpi_secure(ctx: Context<Cpi>, amount: u64) -> ProgramResult {
 }
 ```
 
-Now, if an attacker passes in a different token program, the instruction will return the `ProgramError::IncorrectProgramId` error.
+Тепер, якщо зловмисник передає програму іншого маркера, інструкція поверне помилку `ProgramError::IncorrectProgramId`.
 
-Depending on the program you’re invoking with your CPI, you can either hard code the address of the expected program ID or use the program’s Rust crate to get the address of the program, if available. In the example above, the `spl_token` crate provides the address of the SPL Token Program.
+Залежно від програми, яку ви викликаєте за допомогою свого CPI, ви можете жорстко закодувати адресу очікуваного ідентифікатора програми або скористатися ящиком Rust програми, щоб отримати адресу програми, якщо вона доступна. У наведеному вище прикладі ящик `spl_token` надає адресу програми SPL Token.
 
-## Use an Anchor CPI module
+## Використання модуля Anchor CPI
 
-A simpler way to manage program checks is to use Anchor CPI modules. We learned in a [previous lesson](https://github.com/Unboxed-Software/solana-course/blob/main/content/anchor-cpi) that Anchor can automatically generate CPI modules to make CPIs into the program simpler. These modules also enhance security by verifying the public key of the program that’s passed into one of its public instructions.
+Простіший спосіб керувати програмними перевірками – використовувати модулі Anchor CPI. На [попередньому уроці](https://github.com/Unboxed-Software/solana-course/blob/main/content/anchor-cpi) ми дізналися, що Anchor може автоматично генерувати модулі CPI, щоб спростити CPI у програмі. Ці модулі також підвищують безпеку, перевіряючи відкритий ключ програми, переданий в одну з її публічних інструкцій.
+Кожна програма Anchor використовує макрос `declare_id()` для визначення адреси програми. Коли модуль CPI генерується для певної програми, він використовує адресу, передану в цей макрос, як «джерело істини» та автоматично перевіряє, що всі CPI, створені за допомогою його модуля CPI, спрямовані на цей ідентифікатор програми.
 
-Every Anchor program uses the `declare_id()` macro to define the address of the program. When a CPI module is generated for a specific program, it uses the address passed into this macro as the "source of truth" and will automatically verify that all CPIs made using its CPI module target this program id.
+Хоча за своєю суттю це не відрізняється від ручної перевірки програми, використання модулів CPI дозволяє уникнути можливості забути виконати перевірку програми або випадково ввести неправильний ідентифікатор програми під час жорсткого кодування.
 
-While at the core no different than manual program checks, using CPI modules avoids the possibility of forgetting to perform a program check or accidentally typing in the wrong program ID when hard-coding it.
-
-The program below shows an example of using a CPI module for the SPL Token Program to perform the transfer shown in the previous examples.
-
+Програма нижче показує приклад використання модуля CPI для програми SPL Token для виконання передачі, показаної в попередніх прикладах.
 ```rust
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount};
@@ -139,54 +136,53 @@ impl<'info> Cpi<'info> {
 }
 ```
 
-Note that, like the example above, Anchor has created a few [wrappers for popular native programs](https://github.com/coral-xyz/anchor/tree/master/spl/src) that allow you to issue CPIs into them as if they were Anchor programs.
+Зауважте, що, як і в прикладі вище, Anchor створив декілька [оболонок для популярних нативних програм](https://github.com/coral-xyz/anchor/tree/master/spl/src), які дозволяють видавати CPI так, ніби вони були якірними/прив'язаними програмами.
 
-Additionally and depending on the program you’re making the CPI to, you may be able to use Anchor’s [`Program` account type](https://docs.rs/anchor-lang/latest/anchor_lang/accounts/program/struct.Program.html) to validate the passed-in program in your account validation struct. Between the [`anchor_lang`](https://docs.rs/anchor-lang/latest/anchor_lang) and [`anchor_spl`](https://docs.rs/anchor_spl/latest/) crates, the following `Program` types are provided out of the box:
+Крім того, залежно від програми, для якої ви робите CPI, ви можете використовувати Anchor [програмний тип облікового запису](https://docs.rs/anchor-lang/latest/anchor_lang/accounts/program/struct .Program.html), щоб перевірити передану програму в структурі перевірки вашого облікового запису. Між ящиками [`anchor_lang`](https://docs.rs/anchor-lang/latest/anchor_lang) та [`anchor_spl`](https://docs.rs/anchor_spl/latest/) такі типи 'Program' надаються з коробки:
 
 - [`System`](https://docs.rs/anchor-lang/latest/anchor_lang/struct.System.html)
 - [`AssociatedToken`](https://docs.rs/anchor-spl/latest/anchor_spl/associated_token/struct.AssociatedToken.html)
 - [`Token`](https://docs.rs/anchor-spl/latest/anchor_spl/token/struct.Token.html)
 
-If you have access to an Anchor program's CPI module, you typically can import its program type with the following, replacing the program name with the name of the actual program:
+Якщо у вас є доступ до модуля CPI програми Anchor, ви зазвичай можете імпортувати її тип програми замінивши назву програми назвою актуальної програми:
 
 ```rust
 use other_program::program::OtherProgram;
 ```
 
-# Lab
+# Лабораторія
 
-To show the importance of checking with program you use for CPIs, we're going to work with a simplified and somewhat contrived game. This game represents characters with PDA accounts, and uses a separate "metadata" program to manage character metadata and attributes like health and power.
+Щоб показати важливість перевірки CPI за допомогою програми, яку ви використовуєте, ми попрацюємо зі спрощеною та дещо надуманою грою. Ця гра представляє персонажів з обліковими записами PDA (Program Derived Addresses/Похідні адреси програми) і використовує окрему програму «метаданих» для керування метаданими персонажів і такими атрибутами, як здоров’я та сила.
 
-While this example is somewhat contrived, it's actually almost identical architecture to how NFTs on Solana work: the SPL Token Program manages the token mints, distribution, and transfers, and a separate metadata program is used to assign metadata to tokens. So the vulnerability we go through here could also be applied to real tokens.
+Хоча цей приклад є дещо надуманим, насправді це майже ідентична архітектура до того, як працюють NFT на Solana: Програма токенів SPL керує монетним двором, розповсюдженням і передачею токенів, а окрема програма метаданих використовується для призначення метаданих токенам. Тож уразливість, через яку ми проходимо тут, також може бути застосована до реальних токенів.
+### 1. Налаштування
 
-### 1. Setup
+Ми почнемо з гілки `starter` [цього репозиторію](https://github.com/Unboxed-Software/solana-arbitrary-cpi/tree/starter). Клонуйте репозиторій, а потім відкрийте його в гілці `starter`.
 
-We'll start with the `starter` branch of [this repository](https://github.com/Unboxed-Software/solana-arbitrary-cpi/tree/starter). Clone the repository and then open it on the `starter` branch.
+Зверніть увагу, що існує три програми:
 
-Notice that there are three programs:
+1. `gameplay` -ігровий процес
+2. `character-metadata` -символьні метадані
+3. `fake-metadata`     -хибні, або підроблені метадані
 
-1. `gameplay`
-2. `character-metadata`
-3. `fake-metadata`
+Крім того, у каталозі `tests` вже є тест.
 
-Additionally, there is already a test in the `tests` directory.
+Перша програма, `gameplay`, безпосередньо використовується в нашому тесті. Подивіться на програму. Є дві інструкції:
 
-The first program, `gameplay`, is the one that our test directly uses. Take a look at the program. It has two instructions:
+1. `create_character_insecure` - створює нового персонажа та CPI в програмі метаданих для встановлення початкових атрибутів персонажа
+2. `battle_insecure` - протиставляє двох персонажів один одному, призначаючи «перемогу» персонажу з найвищими атрибутами
 
-1. `create_character_insecure` - creates a new character and CPI's into the metadata program to set up the character's initial attributes
-2. `battle_insecure` - pits two characters against each other, assigning a "win" to the character with the highest attributes
+Друга програма, `character-metadata`, призначена як "схвалена" програма для обробки метаданих символів. Подивіться на цю програму. Вона має одну інструкцію для `create_metadata`, яка створює новий PDA і призначає псевдовипадкове значення від 0 до 20 для здоров’я та сили персонажа.
 
-The second program, `character-metadata`, is meant to be the "approved" program for handling character metadata. Have a look at this program. It has a single instruction for `create_metadata` that creates a new PDA and assigns a pseudo-random value between 0 and 20 for the character's health and power.
+Остання програма, `fake-metadata`, — це програма для підроблених метаданих, призначена для ілюстрації того, що може зробити зловмисник, щоб використати нашу програму `gameplay`. Ця програма майже ідентична програмі `character-metadata`, тільки вона призначає початкове здоров’я та силу персонажа як максимально допустимі: 255.
 
-The last program, `fake-metadata` is a "fake" metadata program meant to illustrate what an attacker might make to exploit our `gameplay` program. This program is almost identical to the `character-metadata` program, only it assigns a character's initial health and power to be the max allowed: 255.
+### 2. Перевірте інструкцію `create_character_insecure`
 
-### 2. Test `create_character_insecure` instruction
-
-There is already a test in the `tests` directory for this. It's long, but take a minute to look at it before we talk through it together:
+Для цього вже є тест у каталозі `tests`. Це довго, але приділіть хвилинку, перш ніж ми обговоримо це разом:
 
 ```typescript
 it("Insecure instructions allow attacker to win every time", async () => {
-    // Initialize player one with real metadata program
+    // Ініціалізувати гравця один зі справжньою програмою метаданих
     await gameplayProgram.methods
       .createCharacterInsecure()
       .accounts({
@@ -196,7 +192,7 @@ it("Insecure instructions allow attacker to win every time", async () => {
       .signers([playerOne])
       .rpc()
 
-    // Initialize attacker with fake metadata program
+    // Ініціалізувати зловмисника за допомогою програми підроблених метаданих
     await gameplayProgram.methods
       .createCharacterInsecure()
       .accounts({
@@ -206,7 +202,7 @@ it("Insecure instructions allow attacker to win every time", async () => {
       .signers([attacker])
       .rpc()
 
-    // Fetch both player's metadata accounts
+    // Отримайте облікові записи метаданих обох гравців
     const [playerOneMetadataKey] = getMetadataKey(
       playerOne.publicKey,
       gameplayProgram.programId,
@@ -227,29 +223,28 @@ it("Insecure instructions allow attacker to win every time", async () => {
       attackerMetadataKey
     )
 
-    // The regular player should have health and power between 0 and 20
+    // Звичайний гравець повинен мати здоров'я та силу від 0 до 20
     expect(playerOneMetadata.health).to.be.lessThan(20)
     expect(playerOneMetadata.power).to.be.lessThan(20)
 
-    // The attacker will have health and power of 255
+    // Зловмисник матиме здоров'я та силу 255
     expect(attackerMetadata.health).to.equal(255)
     expect(attackerMetadata.power).to.equal(255)
 })
 ```
 
-This test walks through the scenario where a regular player and an attacker both create their characters. Only the attacker passes in the program ID of the fake metadata program rather than the actual metadata program. And since the `create_character_insecure` instruction has no program checks, it still executes.
+У цьому тесті розглядається сценарій, у якому звичайний гравець і зловмисник створюють своїх персонажів. Лише зловмисник передає ідентифікатор програми підроблених метаданих, а не фактичну програму метаданих. І оскільки інструкція `create_character_insecure` не має програмних перевірок, вона все одно виконується.
 
-The result is that the regular character has the appropriate amount of health and power: each a value between 0 and 20. But the attacker's health and power are each 255, making the attacker unbeatable.
+У результаті звичайний персонаж має відповідну кількість здоров’я та сили: кожен має значення від 0 до 20. Але здоров’я та сила атакуючого становлять 255, що робить нападника непереможним.
 
-If you haven't already, run `anchor test` to see that this test in fact behaves as described.
+Якщо ви ще цього не зробили, запустіть `anchor test`, щоб переконатися, що цей тест насправді поводиться, як описано.
+### 3. Створіть інструкцію `create_character_secure`
 
-### 3. Create a `create_character_secure` instruction
+Давайте виправимо це, створивши безпечну інструкцію для створення нового персонажа. Ця інструкція має здійснювати належні перевірки програми та використовувати ящик `cpi` програми `character-metadata` для виконання CPI, а не просто використовувати `invoke`.
 
-Let's fix this by creating a secure instruction for creating a new character. This instruction should implement proper program checks and use the `character-metadata` program's `cpi` crate to do the CPI rather than just using `invoke`.
+Якщо ви хочете перевірити свої навички, спробуйте це самостійно, перш ніж рухатися далі.
 
-If you want to test out your skills, try this on your own before moving ahead.
-
-We'll start by updating our `use` statement at the top of the `gameplay` programs `lib.rs` file. We're giving ourselves access to the program's type for account validation, and the helper function for issuing the `create_metadata` CPI.
+Ми почнемо з оновлення нашого оператора `use` у верхній частині файлу `lib.rs` програм `gameplay`. Ми надаємо собі доступ до типу програми для перевірки облікового запису та допоміжної функції для видачі CPI `create_metadata`.
 
 ```rust
 use character_metadata::{
@@ -259,7 +254,7 @@ use character_metadata::{
 };
 ```
 
-Next let's create a new account validation struct called `CreateCharacterSecure`. This time, we make `metadata_program` a `Program` type:
+Далі створимо нову структуру перевірки облікового запису під назвою `CreateCharacterSecure`. Цього разу ми робимо `metadata_program` типом `Program`:
 
 ```rust
 #[derive(Accounts)]
@@ -287,7 +282,7 @@ pub struct CreateCharacterSecure<'info> {
 }
 ```
 
-Lastly, we add the `create_character_secure` instruction. It will be the same as before but will use the full functionality of Anchor CPIs rather than using `invoke` directly:
+Нарешті, ми додаємо інструкцію `create_character_secure`. Він буде таким же, як і раніше, але використовуватиме повну функціональність Anchor CPI, а не використовуватиме безпосередньо `invoke`:
 
 ```rust
 pub fn create_character_secure(ctx: Context<CreateCharacterSecure>) -> Result<()> {
@@ -312,9 +307,9 @@ pub fn create_character_secure(ctx: Context<CreateCharacterSecure>) -> Result<()
 }
 ```
 
-### 4. Test `create_character_secure`
+### 4.Перевірте `create_character_secure`
 
-Now that we have a secure way of initializing a new character, let's create a new test. This test just needs to attempt to initialize the attacker's character and expect an error to be thrown.
+Тепер, коли у нас є безпечний спосіб ініціалізації нового символу, давайте створимо новий тест. У цьому тесті просто потрібно спробувати ініціалізувати персонажа зловмисника та очікувати викидання помилки.
 
 ```typescript
 it("Secure character creation doesn't allow fake program", async () => {
@@ -334,7 +329,7 @@ it("Secure character creation doesn't allow fake program", async () => {
 })
 ```
 
-Run `anchor test` if you haven't already. Notice that an error was thrown as expected, detailing that the program ID passed into the instruction is not the expected program ID:
+Запустіть `anchor test`, якщо ви цього ще не зробили. Зауважте, що помилка була викинута, як і очікувалося, у якій зазначено, що ідентифікатор програми, переданий у інструкції, не є очікуваним ідентифікатором програми:
 
 ```bash
 'Program log: AnchorError caused by account: metadata_program. Error Code: InvalidProgramId. Error Number: 3008. Error Message: Program ID was not as expected.',
@@ -344,21 +339,21 @@ Run `anchor test` if you haven't already. Notice that an error was thrown as exp
 'Program log: D4hPnYEsAx4u3EQMrKEXsY3MkfLndXbBKTEYTwwm25TE'
 ```
 
-That's all you need to do to protect against arbitrary CPIs!
+Це все, що вам потрібно зробити, щоб захиститися від довільних CPI!
 
-There may be times where you want more flexibility in your program's CPIs. We certainly won't stop you from architecting the program you need, but please take every precaution possible to ensure no vulnerabilities in your program.
+Бувають випадки, коли вам потрібна більша гнучкість CPI вашої програми. Звичайно, ми не будемо перешкоджати вам створювати програму, яка вам потрібна, але, будь ласка, вживайте всіх можливих заходів, щоб у вашій програмі не було вразливостей.
 
-If you want to take a look at the final solution code you can find it on the `solution` branch of [the same repository](https://github.com/Unboxed-Software/solana-arbitrary-cpi/tree/solution).
+Якщо ви хочете поглянути на остаточний код рішення, ви можете знайти його у гілці `рішення` [того самого репозиторію](https://github.com/Unboxed-Software/solana-arbitrary-cpi/tree/solution ).
 
-# Challenge
+# Виклик
 
-Just as with other lessons in this unit, your opportunity to practice avoiding this security exploit lies in auditing your own or other programs.
+Як і в інших уроках цього розділу, ваша можливість потренуватися уникати цього експлойту безпеки полягає в перевірці власних або інших програм.
 
-Take some time to review at least one program and ensure that program checks are in place for every program passed into the instructions, particularly those that are invoked via CPI.
+Виділіть деякий час, щоб переглянути принаймні одну програму та переконатися, що програмні перевірки проводяться для кожної програми, переданої в інструкції, особливо тих, які викликаються через CPI.
 
-Remember, if you find a bug or exploit in somebody else's program, please alert them! If you find one in your own program, be sure to patch it right away.
+Пам’ятайте: якщо ви знайшли помилку чи експлойт у чиїйсь програмі, повідомте про це! Якщо ви знайшли такий у своїй програмі, обов’язково встановіть його негайно.
 
 
-## Completed the lab?
+## Закінчив лабораторію?
 
-Push your code to GitHub and [tell us what you thought of this lesson](https://form.typeform.com/to/IPH0UGz7#answers-lesson=5bcaf062-c356-4b58-80a0-12cca99c29b0)!
+Надішліть свій код на GitHub і [розкажіть нам, що ви думаєте про цей урок](https://form.typeform.com/to/IPH0UGz7#answers-lesson=5bcaf062-c356-4b58-80a0-12cca99c29b0)!
