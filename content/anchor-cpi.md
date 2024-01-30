@@ -1,43 +1,43 @@
 ---
-title: Anchor CPIs and Errors
-objectives:
-- Make Cross Program Invocations (CPIs) from an Anchor program
-- Use the `cpi` feature to generate helper functions for invoking instructions on existing Anchor programs
-- Use `invoke` and `invoke_signed` to make CPIs where CPI helper functions are unavailable
-- Create and return custom Anchor errors
+заголовок: Прив’язка CPI та помилки
+цілі:
+- Зробіть перехресні виклики програм (CPI) з програми прив'язки
+- Використовуйте функцію `cpi` для створення допоміжних функцій для виклику інструкцій у існуючих програмах Anchor
+- Використовуйте `invoke` та `invoke_signed`, щоб створити CPI там, де допоміжні функції CPI недоступні
+- Створення та повернення власних помилок Anchor
 ---
 
-# TL;DR
+# Багато тексту
 
-- Anchor provides a simplified way to create CPIs using a **`CpiContext`**
-- Anchor's **`cpi`** feature generates CPI helper functions for invoking instructions on existing Anchor programs
-- If you do not have access to CPI helper functions, you can still use `invoke` and `invoke_signed` directly
-- The **`error_code`** attribute macro is used to create custom Anchor Errors
+- Anchor забезпечує спрощений спосіб створення CPI за допомогою **`CpiContext`**
+- Функція Anchor **`cpi`** генерує допоміжні функції CPI для виклику інструкцій у існуючих програмах Anchor.
+- Якщо ви не маєте доступу до допоміжних функцій CPI, ви все ще можете безпосередньо використовувати `invoke` і `invoke_signed`
+- Макрос атрибута **`error_code`** використовується для створення спеціальних помилок прив’язки
 
-# Overview
+# Огляд
 
-If you think back to the [first CPI lesson](cpi), you'll remember that constructing CPIs can get tricky with vanilla Rust. Anchor makes it a bit simpler though, especially if the program you're invoking is also an Anchor program whose crate you can access.
+Якщо ви згадаєте [перший урок CPI] (cpi), то пам’ятаєте, що побудова CPI може бути складною з vanilla Rust. Однак Anchor робить це трохи простіше, особливо якщо програма, яку ви викликаєте, також є програмою Anchor, до ящика якої ви можете отримати доступ.
 
-In this lesson, you'll learn how to construct an Anchor CPI. You'll also learn how to throw custom errors from an Anchor program so that you can start to write more sophisticated Anchor programs.
+У цьому уроці ви дізнаєтеся, як побудувати опорний CPI. Ви також дізнаєтесь, як видавати власні помилки з програми Anchor, щоб почати писати більш складні програми Anchor.
 
-## Cross Program Invocations (CPIs) with Anchor
+## Міжпрограмні виклики (CPI) з Anchor
 
-As a refresher, CPIs allow programs to invoke instructions on other programs using the `invoke` or `invoke_signed` functions. This allows new programs to build on top of existing programs (we call that composability).
+Щоб відновити увагу, CPI дозволяють програмам викликати інструкції в інших програмах за допомогою функцій `invoke` або `invoke_signed`. Це дозволяє створювати нові програми на основі існуючих програм (ми називаємо це компонуванням).
 
-While making CPIs directly using `invoke` or `invoke_signed` is still an option, Anchor also provides a simplified way to make CPIs by using a `CpiContext`.
+Хоча створення CPI безпосередньо за допомогою `invoke` або `invoke_signed` все ще є можливістю, Anchor також надає спрощений спосіб створення CPI за допомогою `CpiContext`.
 
-In this lesson, you'll use the `anchor_spl` crate to make CPIs to the SPL Token Program. You can [explore what's available in the `anchor_spl` crate](https://docs.rs/anchor-spl/latest/anchor_spl/#).
+У цьому уроці ви використовуватимете ящик `anchor_spl`, щоб створити CPI для програми токенів SPL. Ви можете [дослідити, що доступно в ящику `anchor_spl`](https://docs.rs/anchor-spl/latest/anchor_spl/#).
 
 ### `CpiContext`
 
-The first step in making a CPI is to create an instance of `CpiContext`. `CpiContext` is very similar to `Context`, the first argument type required by Anchor instruction functions. They are both declared in the same module and share similar functionality.
+Першим кроком у створенні CPI є створення екземпляра `CpiContext`. `CpiContext` дуже схожий на `Context`, перший тип аргументу, необхідний для функцій інструкцій Anchor. Вони обидва оголошені в тому самому модулі та мають однакову функціональність.
 
-The `CpiContext` type specifies non-argument inputs for cross program invocations:
+Тип `CpiContext` визначає вхідні дані без аргументів для міжпрограмних викликів:
 
-- `accounts` - the list of accounts required for the instruction being invoked
-- `remaining_accounts` - any remaining accounts
-- `program` - the program ID of the program being invoked
-- `signer_seeds` - if a PDA is signing, include the seeds required to derived the PDA
+- `accounts` - список облікових записів, необхідних для виклику інструкції
+- `remaining_accounts` - усі облікові записи, що залишилися
+- `program` - ідентифікатор програми, яка викликається
+- `signer_seeds` - якщо підписується PDA, включіть початкові числа, необхідні для похідного PDA
 
 ```rust
 pub struct CpiContext<'a, 'b, 'c, 'info, T>
@@ -51,7 +51,7 @@ where
 }
 ```
 
-You use `CpiContext::new` to construct a new instance when passing along the original transaction signature.
+Ви використовуєте `CpiContext::new` для створення нового екземпляра під час передачі оригінального підпису транзакції.
 
 ```rust
 CpiContext::new(cpi_program, cpi_accounts)
@@ -71,7 +71,7 @@ pub fn new(
 }
 ```
 
-You use `CpiContext::new_with_signer` to construct a new instance when signing on behalf of a PDA for the CPI.
+Ви використовуєте `CpiContext::new_with_signer` для створення нового екземпляра під час підписання від імені PDA для CPI.
 
 ```rust
 CpiContext::new_with_signer(cpi_program, cpi_accounts, seeds)
@@ -92,30 +92,30 @@ pub fn new_with_signer(
 }
 ```
 
-### CPI accounts
+### облікові записи CPI
 
-One of the main things about `CpiContext` that simplifies cross-program invocations is that the `accounts` argument is a generic type that lets you pass in any object that adopts the `ToAccountMetas` and `ToAccountInfos<'info>` traits.
+Одна з головних особливостей `CpiContext`, яка спрощує міжпрограмні виклики, полягає в тому, що аргумент `accounts` є загальним типом, який дозволяє передавати будь-який об’єкт, який приймає властивості `ToAccountMetas` і `ToAccountInfos<'info>`».
 
-These traits are added by the `#[derive(Accounts)]` attribute macro that you've used before when creating structs to represent instruction accounts. That means you can use similar structs with `CpiContext`.
+Ці ознаки додаються за допомогою макросу атрибута #[derive(Accounts)]`, який ви використовували раніше під час створення структур для представлення облікових записів інструкцій. Це означає, що ви можете використовувати подібні структури з `CpiContext`.
 
-This helps with code organization and type safety.
+Це допомагає з організацією коду та безпекою типів.
 
-### Invoke an instruction on another Anchor program
+### Викликати інструкцію в іншій програмі Anchor
 
-When the program you're calling is an Anchor program with a published crate, Anchor can generate instruction builders and CPI helper functions for you.
+Якщо програма, яку ви викликаєте, є програмою Anchor з опублікованою коробкою, Anchor може генерувати для вас конструктори інструкцій і допоміжні функції CPI.
 
-Simply declare your program's dependency on the program you're calling in your program's `Cargo.toml` file as follows:
+Просто оголосіть залежність вашої програми від програми, яку ви викликаєте, у файлі `Cargo.toml` вашої програми наступним чином:
 
 ```
 [dependencies]
 callee = { path = "../callee", features = ["cpi"]}
 ```
 
-By adding `features = ["cpi"]`, you enable the `cpi` feature and your program gains access to the `callee::cpi` module.
+Додавши `features = ["cpi"]`, ви вмикаєте функцію `cpi`, і ваша програма отримує доступ до модуля `callee::cpi`.
 
-The `cpi` module exposes `callee`'s instructions as a Rust function that takes as arguments a `CpiContext` and any additional instruction data. These functions use the same format as the instruction functions in your Anchor programs, only with `CpiContext` instead of `Context`. The `cpi` module also exposes the accounts structs required for calling the instructions.
+Модуль `cpi` надає інструкції `callee` як функцію Rust, яка приймає як аргументи `CpiContext` та будь-які додаткові дані інструкцій. Ці функції використовують той самий формат, що й функції інструкцій у ваших програмах Anchor, тільки з `CpiContext` замість `Context`. Модуль `cpi` також надає структури облікових записів, необхідні для виклику інструкцій.
 
-For example, if `callee` has the instruction `do_something` that requires the accounts defined in the `DoSomething` struct, you could invoke `do_something` as follows:
+Наприклад, якщо `callee` має інструкцію `do_something`, яка вимагає облікових записів, визначених у структурі `DoSomething`, ви можете викликати `do_something` наступним чином:
 
 ```rust
 use anchor_lang::prelude::*;
@@ -141,11 +141,11 @@ pub mod lootbox_program {
 ...
 ```
 
-### Invoke an instruction on a non-Anchor program
+### Викликати інструкцію в програмі, яка не є прив’язкою (non-Anchor)
 
-When the program you're calling is *not* an Anchor program, there are two possible options:
+Якщо програма, яку ви викликаєте, *non* є Anchor програма, є два можливі варіанти:
 
-1. It's possible that the program maintainers have published a crate with their own helper functions for calling into their program. For example, the `anchor_spl` crate provides helper functions that are virtually identical from a call-site perspective to what you would get with the `cpi` module of an Anchor program. E.g. you can mint using the [`mint_to` helper function](https://docs.rs/anchor-spl/latest/src/anchor_spl/token.rs.html#36-58) and use the [`MintTo` accounts struct](https://docs.rs/anchor-spl/latest/anchor_spl/token/struct.MintTo.html).
+1. Цілком можливо, що розробники програми опублікували ящик із власними допоміжними функціями для виклику своєї програми. Наприклад, ящик `anchor_spl` надає допоміжні функції, які практично ідентичні з точки зору сайту виклику тим, що ви отримаєте з модулем `cpi` програми Anchor. наприклад ви можете мінтити/карбувати за допомогою допоміжної функції [`mint_to`](https://docs.rs/anchor-spl/latest/src/anchor_spl/token.rs.html#36-58) і використовувати структуру облікових записів [`MintTo` ](https://docs.rs/anchor-spl/latest/anchor_spl/token/struct.MintTo.html).
     ```rust
     token::mint_to(
         CpiContext::new_with_signer(
@@ -163,7 +163,7 @@ When the program you're calling is *not* an Anchor program, there are two possib
         amount,
     )?;
     ```
-2. If there is no helper module for the program whose instruction(s) you need to invoke, you can fall back to using `invoke` and `invoke_signed`. In fact, the source code of the `mint_to` helper function referenced above shows an example us using `invoke_signed` when given a `CpiContext`. You can follow a similar pattern if you decide to use an accounts struct and `CpiContext` to organize and prepare your CPI.
+2. Якщо немає допоміжного модуля для програми, чиї інструкції(и) потрібно викликати, ви можете повернутися до використання `invoke` та `invoke_signed`. Фактично, вихідний код допоміжної функції `mint_to`, згаданий вище, демонструє приклад використання `invoke_signed`, коли надається `CpiContext`. Ви можете дотримуватися подібної моделі, якщо вирішите використовувати структуру облікових записів і `CpiContext` для організації та підготовки свого CPI.
     ```rust
     pub fn mint_to<'a, 'b, 'c, 'info>(
         ctx: CpiContext<'a, 'b, 'c, 'info, MintTo<'info>>,
@@ -190,15 +190,15 @@ When the program you're calling is *not* an Anchor program, there are two possib
     }
     ```
 
-## Throw errors in Anchor
+## Викликання помилок в Anchor.
 
-We're deep enough into Anchor at this point that it's important to know how to create custom errors.
+На даний момент ми достатньо глибоко занурилися в Anchor, тому важливо знати, як створювати власні помилки.
 
-Ultimately, all programs return the same error type: [`ProgramError`](https://docs.rs/solana-program/latest/solana_program/program_error/enum.ProgramError.html). However, when writing a program using Anchor you can use `AnchorError` as an abstraction on top of `ProgramError`. This abstraction provides additional information when a program fails, including:
+Зрештою, усі програми повертають однаковий тип помилки: [`ProgramError`](https://docs.rs/solana-program/latest/solana_program/program_error/enum.ProgramError.html). Однак під час написання програми за допомогою Anchor ви можете використовувати `AnchorError` як абстракцію поверх `ProgramError`. Ця абстракція надає додаткову інформацію, коли програма виходить з ладу, зокрема:
 
-- The error name and number
-- Location in the code where the error was thrown
-- The account that violated a constraint
+- Назва та номер помилки
+- Місце в коді, де виникла помилка
+- Обліковий запис, який порушив обмеження
 
 ```rust
 pub struct AnchorError {
@@ -210,12 +210,12 @@ pub struct AnchorError {
 }
 ```
 
-Anchor Errors can be divided into:
+Anchor Errors можна розділити на:
 
-- Anchor Internal Errors that the framework returns from inside its own code
-- Custom errors that you the developer can create
+- Anchor Internal Errors, внутрішні помилки, які фреймворк повертає з власного коду
+- Custom errors, cпеціальні помилки, які ви можете створити як розробник
 
-You can add errors unique to your program by using the `error_code` attribute. Simply add this attribute to a custom `enum` type. You can then use the variants of the `enum` as errors in your program. Additionally, you can add an error message to each variant using the `msg` attribute. Clients can then display this error message if the error occurs.
+Ви можете додати помилки, унікальні для вашої програми, використовуючи атрибут `error_code`. Просто додайте цей атрибут до спеціального типу `enum`. Потім ви можете використовувати варіанти `enum` як помилки у своїй програмі. Крім того, ви можете додати повідомлення про помилку до кожного варіанту за допомогою атрибута `msg`. У разі виникнення помилки клієнти можуть відобразити це повідомлення про помилку.
 
 ```rust
 #[error_code]
@@ -225,7 +225,7 @@ pub enum MyError {
 }
 ```
 
-To return a custom error you can use the [err](https://docs.rs/anchor-lang/latest/anchor_lang/macro.err.html) or the [error](https://docs.rs/anchor-lang/latest/anchor_lang/prelude/macro.error.html) macro from an instruction function. These add file and line information to the error that is then logged by Anchor to help you with debugging.
+Щоб повернути спеціальну помилку, ви можете скористатися [err](https://docs.rs/anchor-lang/latest/anchor_lang/macro.err.html) або [error](https://docs.rs/anchor -lang/latest/anchor_lang/prelude/macro.error.html) макрос із функції інструкції. Вони додають інформацію про файл і рядок до помилки, яка потім реєструється Anchor, щоб допомогти вам з налагодженням.
 
 ```rust
 #[program]
@@ -247,7 +247,7 @@ pub enum MyError {
 }
 ```
 
-Alternatively, you can use the [require](https://docs.rs/anchor-lang/latest/anchor_lang/macro.require.html) macro to simplify returning errors. The code above can be refactored to the following:
+Крім того, ви можете використати макрос [require](https://docs.rs/anchor-lang/latest/anchor_lang/macro.require.html), щоб спростити повернення помилок. Наведений вище код можна змінити на такий:
 
 ```rust
 #[program]
@@ -267,19 +267,19 @@ pub enum MyError {
 }
 ```
 
-# Lab
+# Лабораторія
 
-Let’s practice the concepts we’ve gone over in this lesson by building on top of the Movie Review program from previous lessons.
+Давайте відпрацюємо концепції, які ми розглянули на цьому уроці, спираючись на програму  Movie Review /Огляд фільмів із попередніх уроків.
 
-In this lab we’ll update the program to mint tokens to users when they submit a new movie review.
+У цій лабораторії ми оновимо програму, щоб мінтити/карбувати токени користувачам, коли вони надсилають рецензію на новий фільм.
 
-### 1. Starter
+### 1.Стартер
 
-To get started, we will be using the final state of the Anchor Movie Review program from the previous lesson. So, if you just completed that lesson then you’re all set and ready to go. If you are just jumping in here, no worries, you can [download the starter code](https://github.com/Unboxed-Software/anchor-movie-review-program/tree/solution-pdas). We'll be using the `solution-pdas` branch as our starting point.
+Для початку ми використаємо остаточний стан програми Anchor Movie Review з попереднього уроку. Отже, якщо ви щойно пройшли цей урок, усе готово. Якщо ви тільки починаєте, не хвилюйтеся, ви можете [завантажити початковий код](https://github.com/Unboxed-Software/anchor-movie-review-program/tree/solution-pdas). Ми будемо використовувати гілку `solution-pdas` як нашу відправну точку.
 
-### 2. Add dependencies to `Cargo.toml`
+### 2. Додайте залежності до `Cargo.toml`
 
-Before we get started we need enable the `init-if-needed` feature and add the `anchor-spl` crate to the dependencies in `Cargo.toml`. If you need to brush up on the `init-if-needed` feature take a look at the [Anchor PDAs and Accounts lesson](anchor-pdas).
+Перш ніж почати, нам потрібно ввімкнути функцію `init-if-needed` і додати ящик `anchor-spl` до залежностей у `Cargo.toml`. Якщо вам потрібно оновити функцію `init-if-needed`, подивіться на [урок Anchor PDAs and Accounts](anchor-pdas).
 
 ```rust
 [dependencies]
@@ -287,9 +287,9 @@ anchor-lang = { version = "0.25.0", features = ["init-if-needed"] }
 anchor-spl = "0.25.0"
 ```
 
-### 3. Initialize reward token
+### 3. Ініціалізувати токен винагороди
 
-Next, navigate to `lib.rs` and create an instruction to initialize a new token mint. This will be the token that is minted each time a user leaves a review. Note that we don't need to include any custom instruction logic since the initialization can be handled entirely through Anchor constraints.
+Далі перейдіть до `lib.rs` і створіть інструкцію для ініціалізації нового токена. Це буде маркер, який карбується кожного разу, коли користувач залишає відгук. Зауважте, що нам не потрібно включати будь-яку спеціальну логіку інструкцій, оскільки ініціалізація може бути оброблена повністю через обмеження Anchor.
 
 ```rust
 pub fn initialize_token_mint(_ctx: Context<InitializeMint>) -> Result<()> {
@@ -298,9 +298,9 @@ pub fn initialize_token_mint(_ctx: Context<InitializeMint>) -> Result<()> {
 }
 ```
 
-Now, implement the `InitializeMint` context type and list the accounts and constraints the instruction requires. Here we initialize a new `Mint` account using a PDA with the string "mint" as a seed. Note that we can use the same PDA for both the address of the `Mint` account and the mint authority. Using a PDA as the mint authority enables our program to sign for the minting of the tokens.
+Тепер реалізуйте тип контексту `InitializeMint` і перелічіть облікові записи та обмеження, яких вимагає інструкція. Тут ми ініціалізуємо новий обліковий запис `Mint` за допомогою PDA з рядком "mint" як початковим. Зауважте, що ми можемо використовувати той самий КПК як для адреси облікового запису `Mint`, так і для адреси монетного двору. Використання PDA як органу монетного двору дозволяє нашій програмі підписувати карбування токенів.
 
-In order to initialize the `Mint` account, we'll need to include the `token_program`, `rent`, and `system_program` in the list of accounts.
+Щоб ініціалізувати обліковий запис `Mint`, нам потрібно буде включити `token_program`, `rent` і `system_program` до списку облікових записів.
 
 ```rust
 #[derive(Accounts)]
@@ -322,12 +322,11 @@ pub struct InitializeMint<'info> {
 }
 ```
 
-There may be some constraints above that you haven't seen yet. Adding `mint::decimals` and `mint::authority` along with `init` ensures that the account is initialized as a new token mint with the appropriate decimals and mint authority set.
+Вище можуть бути деякі обмеження, яких ви ще не бачили. Додавання `mint::decimals` і `mint::authority` разом з `init` гарантує, що обліковий запис буде ініціалізовано як новий токен монетного двору з відповідним набором десяткових знаків і повноважень монетного двору.
 
-### 4. Anchor Error
+### 4. Anchor Error/Помилка прив'язки
 
-Next, let’s create an Anchor Error that we’ll use when validating the `rating` passed to either the `add_movie_review` or `update_movie_review` instruction.
-
+Далі створимо  Anchor Error, яку ми використовуватимемо під час перевірки `rating`, переданого в інструкції `add_movie_review` або `update_movie_review`.
 ```rust
 #[error_code]
 enum MovieReviewError {
@@ -336,18 +335,18 @@ enum MovieReviewError {
 }
 ```
 
-### 5. Update `add_movie_review` instruction
+### 5.Оновлення інструкції `add_movie_review`
 
-Now that we've done some setup, let’s update the `add_movie_review` instruction and `AddMovieReview` context type to mint tokens to the reviewer.
+Тепер, коли ми виконали деякі налаштування, давайте оновимо інструкцію `add_movie_review` і тип контексту `AddMovieReview`, щоб карбувати маркери для рецензента.
 
-Next, update the `AddMovieReview` context type to add the following accounts:
+Далі оновіть тип контексту `AddMovieReview`, щоб додати такі облікові записи:
 
-- `token_program` - we'll be using the Token Program to mint tokens
-- `mint` - the mint account for the tokens that we'll mint to users when they add a movie review
-- `token_account` - the associated token account for the afforementioned `mint` and reviewer
-- `associated_token_program` - required because we'll be using the `associated_token` constraint on the `token_account`
-- `rent` - required because we are using the `init-if-needed` constraint on the `token_account`
-
+- `token_program` - ми будемо використовувати програму Token для карбування жетонів
+- `mint` - обліковий запис монетного двору для жетонів, які ми будемо карбувати користувачам, коли вони додадуть огляд фільму
+- `token_account` - пов'язаний обліковий запис токена для вищезгаданого `mint` та рецензента
+- `associated_token_program` - необхідний, оскільки ми будемо використовувати обмеження `associated_token` для `token_account`
+- `rent` - необхідний, оскільки ми використовуємо обмеження `init-if-needed` для `token_account`
+- 
 ```rust
 #[derive(Accounts)]
 #[instruction(title: String, description: String)]
@@ -363,7 +362,7 @@ pub struct AddMovieReview<'info> {
     #[account(mut)]
     pub initializer: Signer<'info>,
     pub system_program: Program<'info, System>,
-    // ADDED ACCOUNTS BELOW
+    // ДОДАНІ ОБЛІКОВІ ЗАПИСИ НИЖЧЕ
     pub token_program: Program<'info, Token>,
     #[account(
         seeds = ["mint".as_bytes()]
@@ -383,14 +382,14 @@ pub struct AddMovieReview<'info> {
 }
 ```
 
-Again, some of the above constraints may be unfamiliar to you. The `associated_token::mint` and `associated_token::authority` constraints along with the `init_if_needed` constraint ensures that if the account has not already been initialized, it will be initialized as an associated token account for the specified mint and authority.
+Знову ж таки, деякі з наведених вище обмежень можуть бути вам незнайомі. Обмеження `associated_token::mint` і `associated_token::authority` разом із обмеженням `init_if_needed` гарантують, що якщо обліковий запис ще не ініціалізовано, він буде ініціалізований як пов’язаний обліковий запис маркера для вказаного монетного двору та повноваження.
 
-Next, let’s update the `add_movie_review` instruction to do the following:
+Далі оновимо інструкцію `add_movie_review`, щоб зробити наступне:
 
-- Check that `rating` is valid. If it is not a valid rating, return the `InvalidRating` error.
-- Make a CPI to the token program’s `mint_to` instruction using the mint authority PDA as a signer. Note that we'll mint 10 tokens to the user but need to adjust for the mint decimals by making it `10*10^6`.
+- Перевірте, чи `rating` дійсний. Якщо це недійсний рейтинг, поверніть помилку `InvalidRating`.
+- Зробіть CPI для інструкції `mint_to` програми-токена, використовуючи PDA для монетного двору як підписувача. Зауважте, що ми будемо карбувати 10 токенів для користувача, але нам потрібно налаштувати десяткові знаки монетного двору, зробивши їх «10*10^6».
 
-Fortunately, we can use the `anchor_spl` crate to access helper functions and types like `mint_to` and `MintTo` for constructing our CPI to the Token Program. `mint_to` takes a `CpiContext` and integer as arguments, where the integer represents the number of tokens to mint. `MintTo` can be used for the list of accounts that the mint instruction needs.
+На щастя, ми можемо використовувати ящик `anchor_spl` для доступу до допоміжних функцій і типів, таких як `mint_to` і `MintTo`, для створення нашого CPI для програми маркерів. `mint_to` приймає `CpiContext` і ціле число як аргументи, де ціле число представляє кількість токенів для карбування. `MintTo` можна використовувати для списку облікових записів, які потрібні інструкції монетного двору.
 
 ```rust
 pub fn add_movie_review(ctx: Context<AddMovieReview>, title: String, description: String, rating: u8) -> Result<()> {
@@ -429,10 +428,9 @@ pub fn add_movie_review(ctx: Context<AddMovieReview>, title: String, description
 }
 ```
 
-### 6. Update `update_movie_review` instruction
+### 6. Оновлення інструкції `update_movie_review`
 
-Here we are only adding the check that `rating` is valid.
-
+Тут ми лише додаємо перевірку правильності `rating`.
 ```rust
 pub fn update_movie_review(ctx: Context<UpdateMovieReview>, title: String, description: String, rating: u8) -> Result<()> {
     msg!("Movie review account space reallocated");
@@ -450,11 +448,11 @@ pub fn update_movie_review(ctx: Context<UpdateMovieReview>, title: String, descr
 }
 ```
 
-### 7. Test
+### 7. Тест
 
-Those are all of the changes we need to make to the program! Now, let’s update our tests.
+Це всі зміни, які нам потрібно внести в програму! Тепер давайте оновимо наші тести.
 
-Start by making sure your imports nad `describe` function look like this:
+Почніть із того, що ваш імпорт і функція `describe` виглядають так:
 
 ```typescript
 import * as anchor from "@project-serum/anchor"
@@ -464,7 +462,7 @@ import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token"
 import { AnchorMovieReviewProgram } from "../target/types/anchor_movie_review_program"
 
 describe("anchor-movie-review-program", () => {
-  // Configure the client to use the local cluster.
+  // Налаштуйте клієнт для використання локального кластера.
   const provider = anchor.AnchorProvider.env()
   anchor.setProvider(provider)
 
@@ -490,7 +488,7 @@ describe("anchor-movie-review-program", () => {
 }
 ```
 
-With that done, add a test for the `initializeTokenMint` instruction:
+Зробивши це, додайте тест для інструкції `initializeTokenMint`:
 
 ```typescript
 it("Initializes the reward token", async () => {
@@ -498,11 +496,11 @@ it("Initializes the reward token", async () => {
 })
 ```
 
-Notice that we didn't have to add `.accounts` because they call be inferred, including the `mint` account (assuming you have seed inference enabled).
+Зауважте, що нам не потрібно було додавати `.accounts`, тому що вони викликають висновок, включаючи обліковий запис `mint` (припускаючи, що у вас увімкнено початковий висновок).
 
-Next, update the test for the `addMovieReview` instruction. The primary additions are:
-1. To get the associated token address that needs to be passed into the instruction as an account that cannot be inferred
-2. Check at the end of the test that the associated token account has 10 tokens
+Далі оновіть тест для інструкції `addMovieReview`. Основними доповненнями є:
+1. Щоб отримати пов’язану адресу маркера, яку потрібно передати в інструкцію як обліковий запис, який не можна визначити
+2. Наприкінці тесту перевірте, чи пов’язаний обліковий запис токенів має 10 токенів
 
 ```typescript
 it("Movie review is added`", async () => {
@@ -529,9 +527,9 @@ it("Movie review is added`", async () => {
 })
 ```
 
-After that, neither the test for `updateMovieReview` nor the test for `deleteMovieReview` need any changes.
+Після цього ні тест для `updateMovieReview`, ні тест для `deleteMovieReview` не потребують змін.
 
-At this point, run `anchor test` and you should see the following output
+На цьому етапі запустіть `anchor test`, і ви повинні побачити наступний результат
 
 ```console
 anchor-movie-review-program
@@ -543,15 +541,15 @@ anchor-movie-review-program
   5 passing (2s)
 ```
 
-If you need more time with the concepts from this lesson or got stuck along the way, feel free to take a look at the [solution code](https://github.com/Unboxed-Software/anchor-movie-review-program/tree/solution-add-tokens). Note that the solution to this lab is on the `solution-add-tokens` branch.
+Якщо вам потрібно більше часу з концепціями цього уроку або ви застрягли на цьому шляху, не соромтеся перегляньте [код рішення](https://github.com/Unboxed-Software/anchor-movie-review-program /tree/solution-add-tokens). Зауважте, що рішення для цієї лабораторії знаходиться у гілці `solution-add-tokens`.
 
-# Challenge
+# Виклик
 
-To apply what you've learned about CPIs in this lesson, think about how you could incorporate them into the Student Intro program. You could do something similar to what we did in the lab here and add some functionality to mint tokens to users when they introduce themselves.
+Щоб застосувати те, що ви дізналися про CPI на цьому уроці, подумайте про те, як ви можете включити їх у програму Intro для студентів. Ви можете зробити щось подібне до того, що ми робили в лабораторії тут, і додати певну функціональність до монетизації токенів для користувачів, коли вони представляють себе.
 
-Try to do this independently if you can! But if you get stuck, feel free to reference this [solution code](https://github.com/Unboxed-Software/anchor-student-intro-program/tree/cpi-challenge). Note that your code may look slightly different than the solution code depending on your implementation.
+Спробуйте зробити це самостійно, якщо можете! Але якщо ви застрягли, сміливо посилайтеся на цей [код рішення](https://github.com/Unboxed-Software/anchor-student-intro-program/tree/cpi-challenge). Зауважте, що ваш код може дещо відрізнятися від коду рішення залежно від вашої реалізації.
 
 
-## Completed the lab?
+## Закінчив лабораторію?
 
-Push your code to GitHub and [tell us what you thought of this lesson](https://form.typeform.com/to/IPH0UGz7#answers-lesson=21375c76-b6f1-4fb6-8cc1-9ef151bc5b0a)!
+Надішліть свій код на GitHub і [розкажіть нам, що ви думаєте про цей урок](https://form.typeform.com/to/IPH0UGz7#answers-lesson=21375c76-b6f1-4fb6-8cc1-9ef151bc5b0a)!
